@@ -1,0 +1,571 @@
+conn.searchAssets("AdminGroup")
+    .then(assets => {
+      if (assets.length > 0) {
+        const adminGroupId = assets[0].id;
+  
+        // Retrieve the asset metadata by its ID
+        conn.getTransaction(adminGroupId)
+          .then(transaction => {
+            const adminGroupAsset = transaction.asset.data;
+            var adminGroupMetadata = transaction.metadata;
+            console.log("meta: ", adminGroupMetadata);
+            // Check if the creator's public key is in the can_link array
+            var isAllowedToLink = adminGroupMetadata.can_link.includes(adminKeyPair.publicKey);
+            isAllowedToLink = true;
+            if (isAllowedToLink) {
+              console.log('The creator is allowed to link the asset.');
+              // Add the userPublicKey to the can_link array
+                // Modify the metadata as needed
+                adminGroupMetadata.can_link.push(userPublicKey);
+                // console.log("meta: ", adminGroupMetadata);
+                const updatedMetadata = {
+                    ...adminGroupMetadata,
+                    // can_link: adminGroupMetadata.can_link,
+                  };
+                // transferAsset(transaction, adminKeyPair, adminKeyPair.publicKey, updatedMetadata);
+            
+                //   const transactionAG = driver.Transaction.makeTransferTransaction(
+                //     [{ tx: transaction, output_index: 0 }],
+                //     [driver.Transaction.makeOutput(driver.Transaction.makeEd25519Condition(adminKeyPair.publicKey))],
+                //     updatedMetadata
+                //   );
+            
+                //   const signedTransaction = driver.Transaction.signTransaction(transactionAG, adminKeyPair.privateKey);
+            
+                //   conn.postTransactionCommit(signedTransaction);
+
+
+              const instanceTx = createNewAsset(adminKeyPair, asset, metadata)
+              transferAsset(instanceTx, adminKeyPair, userPublicKey, userMetadata)
+              // Update the metadata of the admin group asset on the server
+
+            //   conn.updateMetadata(adminGroupId, adminGroupMetadata);
+                    console.log("instancetx: ", instanceTx.id);
+              return instanceTx
+            } else {
+              console.log('The creator is not allowed to link the asset.');
+            }
+          })
+          .catch(error => {
+            console.error('Error retrieving asset metadata:', error);
+          });
+      } else {
+        console.log('No asset found with the given name.');
+      }
+    })
+    .catch(error => {
+      console.error('Error searching assets:', error);
+    });
+    return "none";
+
+
+
+
+
+
+
+    add new admin public key to can_link of admingroup and make admin group modifiable by new admin.
+
+condarr
+for each public key in can_link
+ subCondition = driver.Transaction.makeEd25519Condition(admin.publicKey, false)
+ condarr.push(subCondition)
+
+condarr.push(river.Transaction.makeEd25519Condition(newadmin.publicKey, false))
+let output = driver.Transaction.makeOutput(condition)
+
+output.public_keys = [for each key in can_link]
+
+
+
+
+
+// async function createAdmin(adminPublicKey, adminPrivateKey, userPublicKey) {
+//     let userTypeId;
+//     try {
+//         console.log(adminPublicKey)
+//         const assets = await conn.searchAssets('adminGroup');
+//         if (assets.length > 0) {
+//             userTypeId = assets[0].id;
+//             console.log('Asset ID:', userTypeId);
+//             const transactions = await conn.listTransactions(userTypeId);
+//             let transaction;
+//             let prevMetadata;
+//             let metadata;
+//             if (transactions.length > 0) {
+//                 transaction = transactions[transactions.length - 1];
+//                 metadata = transaction.metadata;
+//                 prevMetadata = transaction.metadata;
+//             } else {
+//                 console.log('Asset not found.');
+//             }
+//             metadata.can_link.push(userPublicKey);
+//             let subConditions = [];
+//             metadata.can_link.forEach(publicKey => {
+//                 const subCondition = driver.Transaction.makeEd25519Condition(publicKey, false);
+//                 subConditions.push(subCondition);
+//             });
+//             let condition = driver.Transaction.makeThresholdCondition(1, subConditions)
+//             let output = driver.Transaction.makeOutput(condition)
+//             output.public_keys = metadata.can_link;
+//             let transactionTx = driver.Transaction.makeTransferTransaction(
+//                 [{ tx: transaction, output_index: 0 }],
+//                 [output],
+//                 metadata   
+//                 );
+
+//             // let fulfillments = [];
+//             let fulfillment = new cryptoconditions.ThresholdSha256()
+//             fulfillment.threshold = 1
+//             prevMetadata.can_link.forEach(publicKey => {
+//                 let condition1 = driver.Transaction.makeEd25519Condition(publicKey, false);
+//                 if(adminPublicKey === publicKey) {
+//                     const serializedTransaction = driver.Transaction.serializeTransactionIntoCanonicalString(transactionTx)
+//                     const transactionUniqueFulfillment1 = transactionTx.inputs[0].fulfills ? serializedTransaction
+//                         .concat(transactionTx.inputs[0].fulfills.transaction_id)
+//                         .concat(transactionTx.inputs[0].fulfills.output_index) : serializedTransaction
+//                     const transactionHash1 = sha256Hash(transactionUniqueFulfillment1)
+//                     condition1.sign(Buffer.from(transactionHash1, 'hex'), new Buffer.from(base58.decode(adminPrivateKey)))
+//                     fulfillment.addSubfulfillment(condition1.serializeUri())
+//                 }
+//                 else {
+//                     fulfillment.addSubconditionUri(condition1.getConditionUri())
+//                 }
+//             });
+//             const fulfillmentUri = fulfillment.serializeUri()
+//             transactionTx.inputs[0].fulfillment = fulfillmentUri
+//             transactionTx.id = await sha256Hash( driver.Transaction.serializeTransactionIntoCanonicalString(transactionTx))
+//             console.log(transactionTx.id);
+//             // let signedCryptoConditionTx = driver.Transaction.signTransaction(transactionTx, adminPrivateKey)
+//             console.log("after sign")
+//             // await conn.postTransactionCommit(signedCryptoConditionTx);
+//             await conn.postTransactionCommit(transactionTx)
+//             .then(res => {
+//                 console.log('Transfer Transaction', transactionTx.id, 'accepted');
+//             })
+//             .catch(error => {
+//                 console.error('Error during postTransactionCommit:', error);
+//             });
+//             console.log("after post")
+//         } else {
+//             console.log('No asset found with the given name.');
+//         }
+//         console.log("after")
+//     } catch (error) {
+//         console.error('Error searching assets:', error);
+//     }
+//     let adminKeyPair = new driver.Ed25519Keypair();
+//     adminKeyPair.publicKey = adminPublicKey;
+//     adminKeyPair.privateKey = adminPrivateKey;
+
+//     const asset = { 
+//         ns: `${nameSpace}.admin`,
+//         link: userTypeId,
+//         createdBy: adminKeyPair.publicKey,
+//         type: 'admin',
+//         keyword: 'UserAsset'
+//     }
+
+//     const metadata = {
+//         event: 'admin Added',
+//         date: new Date(),
+//         timestamp: Date.now(),
+//         publicKey: adminKeyPair.publicKey,
+//         eventData: {
+//             userType: 'admin'
+//         }
+//     }
+
+//     const adminUserMetadata = {
+//         event: 'admin Assigned',
+//         date: new Date(),
+//         timestamp: Date.now(),
+//         publicKey: adminKeyPair.publicKey,
+//         eventData: {
+//             userType: 'admin'
+//         }
+//     }   
+
+//     const instanceTx = await createNewAsset(adminKeyPair, asset, metadata)
+//     await transferAsset(instanceTx, adminKeyPair, userPublicKey, adminUserMetadata)
+//     return instanceTx
+// }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+async function createAdmin(adminPublicKey, adminPrivateKey, userPublicKey) {
+    let userTypeId;
+    try {
+        console.log(adminPublicKey)
+        const assets = await conn.searchAssets('adminGroup');
+        if (assets.length > 0) {
+            userTypeId = assets[0].id;
+            console.log('Asset ID:', userTypeId);
+            const transactions = await conn.listTransactions(userTypeId);
+            let transaction;
+            let prevMetadata;
+            let metadata;
+            if (transactions.length > 0) {
+                transaction = transactions[transactions.length - 1];
+                metadata = transaction.metadata;
+                prevMetadata = transaction.metadata;
+            } else {
+                console.log('Asset not found.');
+            }
+            metadata.can_link.push(userPublicKey);
+            let subConditions = [];
+            prevMetadata.can_link.forEach(publicKey => {
+                const subCondition = driver.Transaction.makeEd25519Condition(publicKey, false);
+                subConditions.push(subCondition);
+            });
+            let condition = driver.Transaction.makeThresholdCondition(1, subConditions)
+            let output = driver.Transaction.makeOutput(condition)
+            output.public_keys = prevMetadata.can_link;
+            let transactionTx = driver.Transaction.makeTransferTransaction(
+                [{ tx: transaction, output_index: 0 }],
+                [output],
+                metadata   
+                );
+            let fulfillment = new cryptoconditions.ThresholdSha256()
+            fulfillment.threshold = 1
+            const serializedTransaction = driver.Transaction.serializeTransactionIntoCanonicalString(transactionTx)
+            let fullf = driver.Transaction.makeEd25519Condition(adminPublicKey, false);
+            const transactionUniqueFulfillment1 = transactionTx.inputs[0].fulfills ? serializedTransaction
+                .concat(transactionTx.inputs[0].fulfills.transaction_id)
+                .concat(transactionTx.inputs[0].fulfills.output_index) : serializedTransaction
+            const transactionHash1 = sha256Hash(transactionUniqueFulfillment1)
+            fullf.sign(Buffer.from(transactionHash1, 'hex'), new Buffer.from(base58.decode(adminPrivateKey)))
+            fulfillment.addSubfulfillment(fullf.serializeUri())
+            // prevMetadata.can_link.forEach(publicKey => {
+            //     if(adminPublicKey != publicKey) {
+            //         let fullf = driver.Transaction.makeEd25519Condition(publicKey, false);
+            //         fulfillment.addSubconditionUri(fullf.getConditionUri())
+            //     }
+            // });
+
+
+            // prevMetadata.can_link.forEach(publicKey => {
+            //     let condition1 = driver.Transaction.makeEd25519Condition(publicKey, false);
+            //     if(adminPublicKey === publicKey) {
+            //         const serializedTransaction = driver.Transaction.serializeTransactionIntoCanonicalString(transactionTx)
+            //         const transactionUniqueFulfillment1 = transactionTx.inputs[0].fulfills ? serializedTransaction
+            //             .concat(transactionTx.inputs[0].fulfills.transaction_id)
+            //             .concat(transactionTx.inputs[0].fulfills.output_index) : serializedTransaction
+            //         const transactionHash1 = sha256Hash(transactionUniqueFulfillment1)
+            //         condition1.sign(Buffer.from(transactionHash1, 'hex'), new Buffer.from(base58.decode(adminPrivateKey)))
+            //         fulfillment.addSubfulfillment(condition1.serializeUri())
+            //     }
+            //     else {
+            //         fulfillment.addSubconditionUri(condition1.getConditionUri())
+            //     }
+            // });
+            const fulfillmentUri = fulfillment.serializeUri()
+            console.log(fulfillmentUri);
+            transactionTx.inputs[0].fulfillment = fulfillmentUri
+            transactionTx.id = await sha256Hash( driver.Transaction.serializeTransactionIntoCanonicalString(transactionTx))
+
+            console.log(transactionTx.id)
+            // await conn.postTransactionCommit(signedCryptoConditionTx);
+            await conn.postTransactionCommit(transactionTx)
+            .then(res => {
+                console.log('Transfer Transaction', transactionTx.id, 'accepted');
+            })
+            .catch(error => {
+                console.error('Error during postTransactionCommit:', error);
+            });
+            console.log("after post")
+        } else {
+            console.log('No asset found with the given name.');
+        }
+        console.log("after")
+    } catch (error) {
+        console.error('Error searching assets:', error);
+    }
+    // let adminKeyPair = new driver.Ed25519Keypair();
+    // adminKeyPair.publicKey = adminPublicKey;
+    // adminKeyPair.privateKey = adminPrivateKey;
+
+    // const asset = { 
+    //     ns: `${nameSpace}.admin`,
+    //     link: userTypeId,
+    //     createdBy: adminKeyPair.publicKey,
+    //     type: 'admin',
+    //     keyword: 'UserAsset'
+    // }
+
+    // const metadata = {
+    //     event: 'admin Added',
+    //     date: new Date(),
+    //     timestamp: Date.now(),
+    //     publicKey: adminKeyPair.publicKey,
+    //     eventData: {
+    //         userType: 'admin'
+    //     }
+    // }
+
+    // const adminUserMetadata = {
+    //     event: 'admin Assigned',
+    //     date: new Date(),
+    //     timestamp: Date.now(),
+    //     publicKey: adminKeyPair.publicKey,
+    //     eventData: {
+    //         userType: 'admin'
+    //     }
+    // }   
+
+    // const instanceTx = await createNewAsset(adminKeyPair, asset, metadata)
+    // await transferAsset(instanceTx, adminKeyPair, userPublicKey, adminUserMetadata)
+    // return instanceTx
+}
+
+
+
+
+
+
+async function createAdmin(adminPublicKey, adminPrivateKey, userPublicKey) {
+    let userTypeId;
+    try {
+        console.log(adminPublicKey)
+        const assets = await conn.searchAssets('adminGroup');
+        if (assets.length > 0) {
+            userTypeId = assets[0].id;
+            console.log('Asset ID:', userTypeId);
+            const transactions = await conn.listTransactions(userTypeId);
+            let transaction;
+            let metadata;
+            let prevMetadata;
+            if (transactions.length > 0) {
+                transaction = transactions[transactions.length - 1];
+                metadata = transaction.metadata;
+                prevMetadata = JSON.parse(JSON.stringify(transaction.metadata));
+                console.log(prevMetadata);
+                console.log(metadata);
+            } else {
+                console.log('Asset not found.');
+            }
+            metadata.can_link.push(userPublicKey);
+            let subConditions = [];
+            prevMetadata.can_link.forEach(publicKey => {
+                const subCondition = driver.Transaction.makeEd25519Condition(publicKey, false);
+                subConditions.push(subCondition);
+            });
+            let condition = driver.Transaction.makeThresholdCondition(1, subConditions)
+            let output = driver.Transaction.makeOutput(condition)
+            output.public_keys = prevMetadata.can_link;
+            let transactionTx = driver.Transaction.makeTransferTransaction(
+                [{ tx: transaction, output_index: 0 }],
+                [output],
+                metadata   
+                );
+            let fulfillment = new cryptoconditions.ThresholdSha256()
+            fulfillment.threshold = 1
+            const serializedTransaction = driver.Transaction.serializeTransactionIntoCanonicalString(transactionTx)
+            let fullf = driver.Transaction.makeEd25519Condition(adminPublicKey, false);
+            const transactionUniqueFulfillment1 = transactionTx.inputs[0].fulfills ? serializedTransaction
+                .concat(transactionTx.inputs[0].fulfills.transaction_id)
+                .concat(transactionTx.inputs[0].fulfills.output_index) : serializedTransaction
+            const transactionHash1 = sha256Hash(transactionUniqueFulfillment1)
+            fullf.sign(Buffer.from(transactionHash1, 'hex'), new Buffer.from(base58.decode(adminPrivateKey)))
+            fulfillment.addSubfulfillment(fullf.serializeUri())
+
+            // prevMetadata.can_link.forEach(publicKey => {
+            //     if(adminPublicKey != publicKey) {
+            //         let fullf = driver.Transaction.makeEd25519Condition(publicKey, false);
+            //         fulfillment.addSubconditionUri(fullf.getConditionUri())
+            //     }
+            // });
+            console.log(prevMetadata);
+            console.log(metadata);
+
+            const fulfillmentUri = fulfillment.serializeUri()
+            console.log(fulfillmentUri);
+            transactionTx.inputs[0].fulfillment = fulfillmentUri
+            transactionTx.id = await sha256Hash( driver.Transaction.serializeTransactionIntoCanonicalString(transactionTx))
+
+            console.log(transactionTx.id)
+            // await conn.postTransactionCommit(signedCryptoConditionTx);
+            await conn.postTransactionCommit(transactionTx)
+            .then(res => {
+                console.log('Transfer Transaction', transactionTx.id, 'accepted');
+            })
+            .catch(error => {
+                console.error('Error during postTransactionCommit:', error);
+            });
+            console.log("after post")
+        } else {
+            console.log('No asset found with the given name.');
+        }
+        console.log("after")
+    } catch (error) {
+        console.error('Error searching assets:', error);
+    }
+    let adminKeyPair = new driver.Ed25519Keypair();
+    adminKeyPair.publicKey = adminPublicKey;
+    adminKeyPair.privateKey = adminPrivateKey;
+
+    const asset = { 
+        ns: `${nameSpace}.admin`,
+        link: userTypeId,
+        createdBy: adminKeyPair.publicKey,
+        type: 'admin',
+        keyword: 'UserAsset'
+    }
+
+    const metadata = {
+        event: 'admin Added',
+        date: new Date(),
+        timestamp: Date.now(),
+        publicKey: adminKeyPair.publicKey,
+        eventData: {
+            userType: 'admin'
+        }
+    }
+
+    const adminUserMetadata = {
+        event: 'admin Assigned',
+        date: new Date(),
+        timestamp: Date.now(),
+        publicKey: adminKeyPair.publicKey,
+        eventData: {
+            userType: 'admin'
+        }
+    }   
+
+    const instanceTx = await createNewAsset(adminKeyPair, asset, metadata)
+    await transferAsset(instanceTx, adminKeyPair, userPublicKey, adminUserMetadata)
+    return instanceTx
+}
+
+
+
+
+
+
+
+async function createAdmin(adminPublicKey, adminPrivateKey, userPublicKey) {
+    let userTypeId;
+    try {
+        console.log(adminPublicKey)
+        const assets = await conn.searchAssets('adminGroup');
+        if (assets.length > 0) {
+            userTypeId = assets[0].id;
+            console.log('Asset ID:', userTypeId);
+            const transactions = await conn.listTransactions(userTypeId);
+            let transaction;
+            let metadata;
+            let prevMetadata;
+            if (transactions.length > 0) {
+                transaction = transactions[transactions.length - 1];
+                metadata = transaction.metadata;
+                prevMetadata = JSON.parse(JSON.stringify(transaction.metadata));
+                console.log(prevMetadata);
+                console.log(metadata);
+            } else {
+                console.log('Asset not found.');
+            }
+            metadata.can_link.push(userPublicKey);
+            let subConditions = [];
+            metadata.can_link.forEach(publicKey => {
+                const subCondition = driver.Transaction.makeEd25519Condition(publicKey, false);
+                subConditions.push(subCondition);
+            });
+            let condition = driver.Transaction.makeThresholdCondition(1, subConditions)
+            let output = driver.Transaction.makeOutput(condition)
+            output.public_keys = metadata.can_link;
+            let transactionTx = driver.Transaction.makeTransferTransaction(
+                [{ tx: transaction, output_index: 0 }],
+                [output],
+                metadata   
+                );
+            let fulfillment = new cryptoconditions.ThresholdSha256()
+            fulfillment.threshold = 1
+            const serializedTransaction = driver.Transaction.serializeTransactionIntoCanonicalString(transactionTx)
+            let fullf = driver.Transaction.makeEd25519Condition(adminPublicKey, false);
+            const transactionUniqueFulfillment1 = transactionTx.inputs[0].fulfills ? serializedTransaction
+                .concat(transactionTx.inputs[0].fulfills.transaction_id)
+                .concat(transactionTx.inputs[0].fulfills.output_index) : serializedTransaction
+            const transactionHash1 = sha256Hash(transactionUniqueFulfillment1)
+            fullf.sign(Buffer.from(transactionHash1, 'hex'), new Buffer.from(base58.decode(adminPrivateKey)))
+            fulfillment.addSubfulfillment(fullf.serializeUri())
+
+            prevMetadata.can_link.forEach(publicKey => {
+                if(adminPublicKey != publicKey) {
+                    let fullf = driver.Transaction.makeEd25519Condition(publicKey, false);
+                    fulfillment.addSubconditionUri(fullf.getConditionUri())
+                }
+            });
+            console.log(prevMetadata);
+            console.log(metadata);
+
+            const fulfillmentUri = fulfillment.serializeUri()
+            console.log(fulfillmentUri);
+            transactionTx.inputs[0].fulfillment = fulfillmentUri
+            transactionTx.id = await sha256Hash( driver.Transaction.serializeTransactionIntoCanonicalString(transactionTx))
+
+            console.log(transactionTx.id)
+            // await conn.postTransactionCommit(signedCryptoConditionTx);
+            await conn.postTransactionCommit(transactionTx)
+            .then(res => {
+                console.log('Transfer Transaction', transactionTx.id, 'accepted');
+            })
+            .catch(error => {
+                console.error('Error during postTransactionCommit:', error);
+            });
+            console.log("after post")
+        } else {
+            console.log('No asset found with the given name.');
+        }
+        console.log("after")
+    } catch (error) {
+        console.error('Error searching assets:', error);
+    }
+    let adminKeyPair = new driver.Ed25519Keypair();
+    adminKeyPair.publicKey = adminPublicKey;
+    adminKeyPair.privateKey = adminPrivateKey;
+
+    const asset = { 
+        ns: `${nameSpace}.admin`,
+        link: userTypeId,
+        createdBy: adminKeyPair.publicKey,
+        type: 'admin',
+        keyword: 'UserAsset'
+    }
+
+    const metadata = {
+        event: 'admin Added',
+        date: new Date(),
+        timestamp: Date.now(),
+        publicKey: adminKeyPair.publicKey,
+        eventData: {
+            userType: 'admin'
+        }
+    }
+
+    const adminUserMetadata = {
+        event: 'admin Assigned',
+        date: new Date(),
+        timestamp: Date.now(),
+        publicKey: adminKeyPair.publicKey,
+        eventData: {
+            userType: 'admin'
+        }
+    }   
+
+    const instanceTx = await createNewAsset(adminKeyPair, asset, metadata)
+    await transferAsset(instanceTx, adminKeyPair, userPublicKey, adminUserMetadata)
+    return instanceTx
+}

@@ -1,0 +1,29 @@
+{
+  "name": "lms",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "bcrypt": "^5.1.0",
+    "bigchaindb-driver": "^4.3.0",
+    "bip39": "^3.1.0",
+    "bs58": "^5.0.0",
+    "buffer": "^6.0.3",
+    "cookie-parser": "^1.4.6",
+    "crypto-conditions": "^2.2.1",
+    "csv-parser": "^3.0.0",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "express-session": "^1.17.3",
+    "js-sha3": "^0.8.0",
+    "mongoose": "^7.0.3",
+    "ngrok": "^5.0.0-beta.2",
+    "nodemailer": "^6.9.3",
+    "nodemailer-sendmail-transport": "^1.0.2"
+  }
+}
